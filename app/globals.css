@@ -1,26 +1,117 @@
+/* --- Tailwind v4 Core Import --- */
 @import "tailwindcss";
 
+/* ------------------------------------
+   THEME VARIABLES
+------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light Theme Backgrounds */
+  --page-bg-primary: #ffffff;
+  --page-bg-secondary: #f8f9fa;
+  --page-bg-tertiary: #f1f3f5;
+  
+  /* Light Theme Text */
+  --text-primary: #000000;
+  --text-secondary: #495057;
+  --text-tertiary: #868e96;
+  
+  /* Accent Colors (Red theme) */
+  --accent-primary: #e03131;
+  --accent-secondary: #fa5252;
+  --accent-tertiary: #ff6b6b;
+  
+  /* Borders */
+  --border-light: #dee2e6;
+  --border-medium: #adb5bd;
+  --border-dark: #495057;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="dark"] {
+  /* Dark Theme Backgrounds */
+  --page-bg-primary: #121212;
+  --page-bg-secondary: #1a1a1a;
+  --page-bg-tertiary: #2d2d2d;
+  
+  /* Dark Theme Text */
+  --text-primary: #ffffff;
+  --text-secondary: #e9ecef;
+  --text-tertiary: #adb5bd;
+  
+  /* Accent Colors (Softer red for dark mode) */
+  --accent-primary: #ff6b6b;
+  --accent-secondary: #ff8787;
+  --accent-tertiary: #ffa8a8;
+  
+  /* Borders */
+  --border-light: #495057;
+  --border-medium: #868e96;
+  --border-dark: #adb5bd;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ------------------------------------
+    UTILITY CLASSES USING VARIABLES
+------------------------------------ */
+
+/* Backgrounds */
+.bg-page-primary {
+  background-color: var(--page-bg-primary);
 }
 
+.bg-page-secondary {
+  background-color: var(--page-bg-secondary);
+}
+
+.bg-page-tertiary {
+  background-color: var(--page-bg-tertiary);
+}
+
+/* Text Colors */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-tertiary {
+  color: var(--text-tertiary);
+}
+
+/* Borders */
+.border-light {
+  border-color: var(--border-light);
+}
+
+.border-medium {
+  border-color: var(--border-medium);
+}
+
+/* Accent */
+.text-accent {
+  color: var(--accent-primary);
+}
+
+.bg-accent {
+  background-color: var(--accent-primary);
+}
+
+/* ------------------------------------
+    GLOBAL TRANSITIONS
+------------------------------------ */
+* {
+  transition: 
+    background-color 0.3s ease,
+    border-color 0.3s ease, 
+    color 0.3s ease,
+    opacity 0.3s ease;
+}
+
+/* ------------------------------------
+    BODY DEFAULTS
+------------------------------------ */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--page-bg-primary);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }

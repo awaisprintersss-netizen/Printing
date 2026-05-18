@@ -33,9 +33,7 @@ export default async function AdminLayout({
               
               <ThemeToggle />
               
-              <UserButton 
-                afterSignOutUrl="/sign-in"
-              />
+              <UserButton />
             </div>
           </div>
         </div>

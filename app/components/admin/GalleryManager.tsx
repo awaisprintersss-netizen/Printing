@@ -3,16 +3,19 @@
 import { useState, useEffect } from 'react';
 import { 
   Plus, Edit, Trash2, Eye, Search, Filter, 
-  Download, Upload, RefreshCw, MoreVertical,
+  Download, Upload, RefreshCw,
   ChevronLeft, ChevronRight, AlertCircle, CheckCircle
 } from 'lucide-react';
 import { AdminGalleryItem, GalleryFormData } from '@/types/gallery';
 import { GalleryForm } from './GalleryForm';
 import { AdminLoading } from './AdminLoading';
+import { galleryImageSource } from '@/lib/gallery-media';
+import { galleryJsonLimit } from '@/lib/gallery-upload-limits';
 
 export const GalleryManager = () => {
   const [items, setItems] = useState<AdminGalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -34,30 +37,30 @@ export const GalleryManager = () => {
     { id: 'specialty', name: 'Specialty Printing' },
   ];
 
-  // Fetch gallery items
-  const fetchItems = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/admin/gallery');
-      const data = await response.json();
-      
-      if (data.success) {
-        setItems(data.items);
-      } else {
-        setError(data.error || 'Failed to fetch items');
-      }
-    } catch (err) {
-      setError('Error fetching gallery items');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const fetchItems = () => {
+    setLoading(true);
+    setError(null);
+    setRefresh(value => value + 1);
   };
 
   useEffect(() => {
-    fetchItems();
-  }, []);
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const response = await fetch("/api/admin/gallery", { signal: controller.signal });
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        if (response.ok && data.success) setItems(data.items);
+        else setError(data.error || "Failed to fetch items");
+      } catch {
+        if (!controller.signal.aborted) setError("Error fetching gallery items");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [refresh]);
 
   // Handle form submission
   const handleSubmit = async (formData: GalleryFormData & { imageFile?: string }) => {
@@ -70,12 +73,22 @@ export const GalleryManager = () => {
       const body = editingItem 
         ? { ...formData, _id: editingItem._id }
         : formData;
+      const payload = JSON.stringify(body);
+      const sizeError = 'The request is too large. Choose a smaller image or shorten the project details.';
+      if (new TextEncoder().encode(payload).byteLength > galleryJsonLimit) {
+        setError(sizeError);
+        return;
+      }
       
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: payload,
       });
+      if (response.status === 413 && !response.headers.get('content-type')?.includes('application/json')) {
+        setError(sizeError);
+        return;
+      }
       
       const data = await response.json();
       
@@ -138,6 +151,8 @@ export const GalleryManager = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const latestUpdate = items.reduce((latest, item) => Math.max(latest, new Date(item.updatedAt || item.createdAt || 0).getTime() || 0), 0);
+
   // Pagination
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -152,9 +167,9 @@ export const GalleryManager = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary">
+          <h2 className="text-2xl font-bold text-primary">
             Gallery Management
-          </h1>
+          </h2>
           <p className="text-secondary">
             Manage your printing gallery items ({filteredItems.length} items)
           </p>
@@ -275,10 +290,7 @@ export const GalleryManager = () => {
             <div>
               <p className="text-sm font-medium text-secondary">Last Updated</p>
               <p className="text-lg font-bold text-primary mt-1">
-                {items.length > 0 
-                  ? new Date(Math.max(...items.map(item => new Date(item.updatedAt || item.createdAt || Date.now()).getTime()))).toLocaleDateString()
-                  : 'Never'
-                }
+                {latestUpdate ? new Date(latestUpdate).toLocaleDateString() : "Never"}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-purple-500/10">
@@ -446,13 +458,11 @@ export const GalleryManager = () => {
                           )}
                         </button>
                         
-                        <button
-                          onClick={() => window.open(`/gallery#item-${item.id}`, '_blank')}
-                          className="p-2 text-secondary hover:bg-page-tertiary rounded-lg transition-colors hover:text-primary"
-                          title="Preview"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        {galleryImageSource(item.image) && (
+                          <a href={galleryImageSource(item.image)!} target="_blank" rel="noopener noreferrer" className="p-2 text-secondary hover:bg-page-tertiary rounded-lg transition-colors hover:text-primary" aria-label={"Preview image: " + item.title}>
+                            <Eye className="w-4 h-4" aria-hidden="true" />
+                          </a>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -524,7 +534,9 @@ export const GalleryManager = () => {
       {/* Form Modal */}
       {showForm && (
         <GalleryForm
+          key={editingItem?._id ?? "new"}
           item={editingItem}
+          error={error}
           onClose={() => {
             setShowForm(false);
             setEditingItem(null);

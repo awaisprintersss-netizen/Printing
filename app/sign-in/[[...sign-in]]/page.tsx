@@ -1,13 +1,17 @@
-import { SignIn } from "@clerk/nextjs";
+import type { Metadata } from "next";
+import { ClerkProvider, SignIn } from "@clerk/nextjs";
+
+export const metadata: Metadata = { title: "Sign in | Awais Printers", robots: { index: false, follow: false } };
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-page-primary">
+    <ClerkProvider>
+    <main id="main-content" tabIndex={-1} className="min-h-screen flex items-center justify-center bg-page-primary">
       <div className="max-w-md w-full space-y-8 p-8">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-primary">
+          <h1 className="mt-6 text-3xl font-extrabold text-primary">
             Admin Sign In
-          </h2>
+          </h1>
           <p className="mt-2 text-sm text-tertiary">
             Enter your credentials to access the admin panel
           </p>
@@ -18,10 +22,10 @@ export default function SignInPage() {
             appearance={{
               variables: {
                 colorPrimary: 'var(--accent-primary)',
-                colorText: 'var(--text-primary)',
+                colorForeground: 'var(--text-primary)',
                 colorBackground: 'var(--page-secondary)',
-                colorInputBackground: 'var(--page-primary)',
-                colorInputText: 'var(--text-primary)',
+                colorInput: 'var(--page-primary)',
+                colorInputForeground: 'var(--text-primary)',
                 colorNeutral: 'var(--border-light)',
                 colorDanger: '#ef4444',
               },
@@ -49,11 +53,13 @@ export default function SignInPage() {
             }}
             routing="path"
             path="/sign-in"
-            signUpUrl="/sign-up"
+            withSignUp={false}
+            transferable={false}
             forceRedirectUrl="/admin"
           />
         </div>
       </div>
-    </div>
+    </main>
+    </ClerkProvider>
   );
 }

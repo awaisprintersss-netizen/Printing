@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { 
   Phone, Menu, X, Sparkles, ChevronDown, 
-  MessageCircle, ShoppingCart, Search, Sun, Moon,
+  MessageCircle, Sun, Moon,
   User
 } from "lucide-react"
 import { useTheme } from "@/app/theme-provider"
@@ -12,29 +12,31 @@ import { useTheme } from "@/app/theme-provider"
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [hoveredNav, setHoveredNav] = useState<string | null>(null)
-  const [cartItems, setCartItems] = useState(3)
-  const [isLoading, setIsLoading] = useState(true)
   const { theme, toggleTheme } = useTheme()
-  const [isClient, setIsClient] = useState(false)
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
+  const menuButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20)
     }
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
+    const initialScroll = window.requestAnimationFrame(handleScroll)
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      window.cancelAnimationFrame(initialScroll)
+      window.removeEventListener("scroll", handleScroll)
+    }
   }, [])
 
   useEffect(() => {
-    // Simulate loading delay
-    const timer = setTimeout(() => setIsLoading(false), 800)
-    return () => clearTimeout(timer)
-  }, [])
+    if (!isMenuOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      setIsMenuOpen(false)
+      menuButton.current?.focus()
+    }
+    window.addEventListener("keydown", closeOnEscape)
+    return () => window.removeEventListener("keydown", closeOnEscape)
+  }, [isMenuOpen])
 
   const navItems = [
     { label: "Home", href: "/" },
@@ -62,55 +64,6 @@ export function Header() {
   const hoverBg = theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-100"
   const borderColor = theme === "dark" ? "border-gray-800" : "border-gray-200"
 
-  if (isLoading) {
-    return (
-      <header className="sticky top-0 z-50 bg-page-primary border-b border-light">
-        <div className="mx-auto max-w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            {/* Logo Skeleton */}
-            <div className="flex items-center gap-3">
-              <div className="h-14 w-14 bg-page-tertiary rounded-2xl animate-pulse"></div>
-              <div className="flex flex-col gap-1">
-                <div className="h-5 bg-page-tertiary rounded animate-pulse w-32"></div>
-                <div className="h-3 bg-page-tertiary rounded animate-pulse w-24"></div>
-              </div>
-            </div>
-
-            {/* Desktop Navigation Skeleton */}
-            <nav className="hidden lg:flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((index) => (
-                <div key={index} className="px-4 py-2">
-                  <div className="h-4 bg-page-tertiary rounded animate-pulse w-16"></div>
-                </div>
-              ))}
-            </nav>
-
-            {/* Right Side Actions Skeleton */}
-            <div className="flex items-center gap-4">
-              {/* Admin Login Skeleton */}
-              <div className="h-9 w-9 bg-page-tertiary rounded-full animate-pulse"></div>
-
-              {/* Theme Toggle Skeleton */}
-              <div className="h-9 w-9 bg-page-tertiary rounded-full animate-pulse"></div>
-
-              {/* Mobile Menu Button Skeleton */}
-              <div className="lg:hidden h-9 w-9 bg-page-tertiary rounded animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Menu Skeleton */}
-        <div className="lg:hidden border-t border-light bg-page-primary">
-          <div className="px-4 py-4 space-y-3">
-            {[1, 2, 3, 4, 5].map((index) => (
-              <div key={index} className="h-4 bg-page-tertiary rounded animate-pulse w-20"></div>
-            ))}
-          </div>
-        </div>
-      </header>
-    )
-  }
-
   return (
     <>
       {/* Top Announcement Bar - Uncomment if needed */}
@@ -126,13 +79,11 @@ export function Header() {
         <div className="mx-auto max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <Link 
+            <Link prefetch={false}
               href="/" 
-              className="flex items-center gap-3 group relative"
-              onMouseEnter={() => setHoveredNav("logo")}
-              onMouseLeave={() => setHoveredNav(null)}
+              className="flex min-w-0 items-center gap-2 min-[360px]:gap-3 group relative"
             >
-              <div className="relative">
+              <div className="relative shrink-0">
                 <div className="absolute -inset-4 bg-linear-to-r from-red-500/20 to-red-600/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-black to-gray-900 shadow-2xl">
                   <div className="relative h-12 w-12">
@@ -145,24 +96,22 @@ export function Header() {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-col">
-                <span className={`text-xl font-bold uppercase leading-tight ${textColor} group-hover:text-red-600 transition-colors`}>
+              <div className="flex min-w-0 flex-col">
+                <span className={`text-base min-[360px]:text-xl font-bold uppercase leading-tight ${textColor} group-hover:text-red-600 transition-colors`}>
                   Awais Printers
                 </span>
-                <span className={`text-[10px] uppercase leading-tight ${textSecondaryColor} group-hover:text-gray-700 transition-colors`}>
+                <span className={`text-[8px] min-[360px]:text-[10px] uppercase leading-tight ${textSecondaryColor} group-hover:text-gray-700 transition-colors`}>
                   Where Ideas Become Reality
                 </span>
-                {hoveredNav === "logo" && (
-                  <div className="absolute -bottom-1 left-0 h-0.5 w-24 bg-linear-to-r from-red-600 to-red-500 animate-expand-width" />
-                )}
+                <div className="absolute -bottom-1 left-0 h-0.5 w-24 origin-left scale-x-0 bg-linear-to-r from-red-600 to-red-500 transition-transform group-hover:scale-x-100 group-focus-visible:scale-x-100" />
               </div>
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-1">
               {navItems.map((item) => (
-                <div key={item.label} className="relative" onMouseEnter={() => setHoveredNav(item.label)} onMouseLeave={() => setHoveredNav(null)}>
-                  <Link
+                <div key={item.label} className="group/nav relative">
+                  <Link prefetch={false}
                     href={item.href}
                     className={`flex items-center gap-1 px-4 py-2 text-sm font-medium ${textSecondaryColor} hover:${textColor} transition-colors group`}
                   >
@@ -170,19 +119,19 @@ export function Header() {
                   </Link>
                   
                   {/* Hover Indicator */}
-                  {hoveredNav === item.label && (
-                    <div className="absolute -bottom-1 left-4 right-4 h-0.5 bg-linear-to-r from-red-600 to-red-500 animate-expand-width" />
-                  )}
+                  <div className="absolute -bottom-1 left-4 right-4 h-0.5 origin-left scale-x-0 bg-linear-to-r from-red-600 to-red-500 transition-transform group-hover/nav:scale-x-100 group-focus-within/nav:scale-x-100" />
                 </div>
               ))}
             </nav>
 
             {/* Right Side Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+              <a href="tel:+923224432533" aria-label="Call us" className="hidden min-[360px]:grid lg:hidden size-9 place-items-center rounded-full bg-red-600 text-white focus-visible:outline-2 focus-visible:outline-offset-2"><Phone className="size-4" /></a>
+              <a href="https://wa.me/923224432533" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp chat" className="sm:hidden grid size-9 place-items-center rounded-full bg-green-700 text-white focus-visible:outline-2 focus-visible:outline-offset-2"><MessageCircle className="size-4" /></a>
               {/* Admin Login Icon */}
-              <Link
+              <Link prefetch={false}
                 href="/admin"
-                className="group relative p-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="hidden sm:block group relative p-2 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 aria-label="Admin Login"
                 title="Admin Dashboard"
               >
@@ -300,7 +249,7 @@ export function Header() {
 
               {/* Phone Numbers */}
               <div className="hidden lg:block relative group">
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} border ${borderColor} group-hover:border-red-500 transition-all`}>
+                <a href="tel:+923224432533" className={`flex items-center gap-2 px-4 py-2 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} border ${borderColor} group-hover:border-red-500 transition-all`}>
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-r from-red-600 to-red-500 shadow-lg">
                     <Phone className="h-5 w-5 text-white" />
                   </div>
@@ -309,10 +258,10 @@ export function Header() {
                     <span className={`text-sm font-bold ${textColor}`}>+92 322 4432533</span>
                   </div>
                   <ChevronDown className={`h-4 w-4 ${textSecondaryColor} group-hover:rotate-180 transition-transform`} />
-                </div>
+                </a>
 
                 {/* Dropdown */}
-                <div className={`absolute top-full right-0 mt-2 w-64 rounded-xl ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} shadow-2xl border ${borderColor} backdrop-blur-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300`}>
+                <div className={`absolute top-full right-0 mt-2 w-64 rounded-xl ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} shadow-2xl border ${borderColor} backdrop-blur-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-300`}>
                   <div className="p-4">
                     <h4 className={`text-sm font-semibold ${textColor} mb-3`}>Contact Numbers</h4>
                     {phoneNumbers.map((phone) => (
@@ -335,22 +284,19 @@ export function Header() {
                         </div>
                       </a>
                     ))}
-                    <div className="mt-3 pt-3 border-t border-gray-700">
-                      <div className={`flex items-center justify-between text-xs ${textSecondaryColor}`}>
-                        <span>📅 Mon-Sat: 9AM-7PM</span>
-                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                      </div>
-                    </div>
+                    <Link prefetch={false} href="/contact#location" className="mt-3 block border-t border-light pt-3 text-sm text-secondary hover:underline">Get directions</Link>
                   </div>
                 </div>
               </div>
 
               {/* Mobile Menu Button */}
               <button
+                ref={menuButton}
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className={`lg:hidden p-2 rounded-lg ${hoverBg} transition-colors`}
                 aria-label={isMenuOpen ? "Close menu" : "Open menu"}
                 aria-expanded={isMenuOpen}
+                aria-controls="mobile-navigation"
               >
                 {isMenuOpen ? (
                   <X className={`h-6 w-6 ${textSecondaryColor}`} />
@@ -363,8 +309,8 @@ export function Header() {
         </div>
 
         {/* Mobile Menu */}
-        <div 
-          className={`lg:hidden fixed inset-x-0 top-24 ${theme === 'dark' ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl border-t ${borderColor} shadow-2xl transition-all duration-300 ease-out ${
+        <div id="mobile-navigation"
+          className={`lg:hidden absolute inset-x-0 top-full max-h-[calc(100dvh-5rem)] overflow-y-auto ${theme === 'dark' ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl border-t ${borderColor} shadow-2xl transition-all duration-300 ease-out ${
             isMenuOpen 
               ? "opacity-100 visible translate-y-0" 
               : "opacity-0 invisible -translate-y-4"
@@ -372,12 +318,12 @@ export function Header() {
         >
           <div className="mx-auto max-w-7xl px-4 py-6">
             {/* Mobile Admin Login */}
-            <Link
+            <Link prefetch={false}
               href="/admin"
               className={`flex items-center gap-3 p-4 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'} border ${borderColor} mb-6 group`}
               onClick={() => setIsMenuOpen(false)}
             >
-              <div className={`h-12 w-12 rounded-full flex items-center justify-center border ${
+              <div className={`relative h-12 w-12 rounded-full flex items-center justify-center border ${
                 theme === "dark" 
                   ? "border-blue-500/30 bg-linear-to-br from-gray-800 to-gray-900 text-blue-300" 
                   : "border-blue-400/30 bg-linear-to-br from-blue-50 to-white text-blue-600"
@@ -423,7 +369,7 @@ export function Header() {
             <div className="space-y-1">
               {navItems.map((item) => (
                 <div key={item.label}>
-                  <Link
+                  <Link prefetch={false}
                     href={item.href}
                     className={`flex items-center justify-between px-4 py-3 text-lg font-medium ${textColor} ${hoverBg} rounded-xl transition-colors`}
                     onClick={() => setIsMenuOpen(false)}
@@ -467,52 +413,15 @@ export function Header() {
               </div>
             </div>
 
-            {/* Mobile Business Info */}
-            <div className={`mt-6 p-4 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} border ${borderColor}`}>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className={textSecondaryColor}>Open Now</span>
-                </div>
-                <span className={`font-medium ${textColor}`}>9:00 AM - 7:00 PM</span>
-              </div>
-              <p className={`mt-2 text-xs ${textSecondaryColor}`}>Mon-Sat • Sunday Closed</p>
-            </div>
+            <Link prefetch={false} href="/contact#location" onClick={() => setIsMenuOpen(false)} className="mt-6 block rounded-xl border border-light p-4 text-primary hover:underline">Get directions</Link>
           </div>
         </div>
 
         {/* Scrolling Progress Bar */}
         <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-linear-to-r from-transparent via-red-600 to-transparent opacity-30">
-          {isClient && (
-            <div 
-              className="h-full bg-linear-to-r from-red-600 to-red-500 transition-all duration-300"
-              style={{
-                width: `${Math.min((window.scrollY / 500) * 100, 100)}%`
-              }}
-            />
-          )}
+          <div aria-hidden="true" className="header-scroll-progress h-full bg-linear-to-r from-red-600 to-red-500" />
         </div>
       </header>
-
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
-        <a
-          href="tel:+923224432533"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-r from-red-600 to-red-500 text-white shadow-2xl shadow-red-500/30 hover:shadow-red-500/50 transition-all hover:scale-110 active:scale-95"
-          aria-label="Call us"
-        >
-          <Phone className="h-6 w-6" />
-        </a>
-        <a
-          href="https://wa.me/923224432533"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-r from-green-600 to-green-700 text-white shadow-2xl shadow-green-500/30 hover:shadow-green-500/50 transition-all hover:scale-110 active:scale-95"
-          aria-label="WhatsApp chat"
-        >
-          <MessageCircle className="h-6 w-6" />
-        </a>
-      </div>
     </>
   )
 }

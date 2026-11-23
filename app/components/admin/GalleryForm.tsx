@@ -1,14 +1,18 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { X, Upload, Loader2, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { GalleryFormData, AdminGalleryItem } from '@/types/gallery';
+import { galleryPlaceholder } from '@/lib/gallery-media';
+import { galleryImageLimitLabel, getGalleryFileError } from '@/lib/gallery-upload-limits';
 
 interface GalleryFormProps {
   item?: AdminGalleryItem | null;
   onClose: () => void;
   onSubmit: (data: GalleryFormData & { imageFile?: string }) => Promise<void>;
   loading: boolean;
+  error?: string | null;
 }
 
 const categories = [
@@ -30,44 +34,42 @@ const initialFormData: GalleryFormData = {
   image: '',
 };
 
-export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormProps) => {
-  const [formData, setFormData] = useState<GalleryFormData>(initialFormData);
+export const GalleryForm = ({ item, onClose, onSubmit, loading, error }: GalleryFormProps) => {
+  const [formData, setFormData] = useState<GalleryFormData>(() => item ? {
+    title: item.title, category: item.category, description: item.description,
+    tags: item.tags || [], year: item.year, client: item.client, image: item.image || '',
+  } : initialFormData);
   const [tagInput, setTagInput] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState(item?.image || '');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    if (item) {
-      setFormData({
-        title: item.title,
-        category: item.category,
-        description: item.description,
-        tags: item.tags || [],
-        year: item.year,
-        client: item.client,
-        image: item.image || '',
-      });
-      setImagePreview(item.image || '');
-    } else {
-      setFormData(initialFormData);
-      setImagePreview('');
-    }
-  }, [item]);
+    if (!dialog.current?.open) dialog.current?.showModal();
+  }, []);
+  const close = () => dialog.current?.close();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (fileError) return;
     
     let imageFile = '';
     
     // If there's a selected file, convert it to base64
     if (selectedFile) {
+      const validationError = getGalleryFileError(selectedFile);
+      if (validationError) {
+        setFileError(validationError);
+        return;
+      }
       try {
         setUploading(true);
         imageFile = await convertToBase64(selectedFile);
-      } catch (error) {
-        console.error('Error converting image:', error);
+      } catch {
+        setFileError('The image could not be read. Select it again and retry.');
         return;
       } finally {
         setUploading(false);
@@ -112,15 +114,10 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
-        return;
-      }
-      
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('File size should be less than 5MB');
+      const validationError = getGalleryFileError(file);
+      setFileError(validationError);
+      if (validationError) {
+        e.target.value = '';
         return;
       }
       
@@ -139,6 +136,7 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
   };
 
   const handleRemoveImage = () => {
+    setFileError(null);
     setSelectedFile(null);
     setImagePreview('');
     if (fileInputRef.current) {
@@ -155,16 +153,10 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
     });
   };
 
-  const presetImageUrls = [
-    { url: '/gallery/business-cards-1.jpg', label: 'Business Cards' },
-    { url: '/gallery/packaging-1.jpg', label: 'Packaging' },
-    { url: '/gallery/labels-1.jpg', label: 'Labels' },
-    { url: '/gallery/brochures-1.jpg', label: 'Brochures' },
-    { url: '/gallery/banners-1.jpg', label: 'Banners' },
-    { url: '/gallery/specialty-1.jpg', label: 'Specialty' },
-  ];
+  const presetImageUrls = [{ url: galleryPlaceholder, label: "Photo unavailable" }];
 
   const handlePresetImageClick = (url: string) => {
+    setFileError(null);
     setSelectedFile(null);
     setImagePreview(url);
     setFormData({ ...formData, image: url });
@@ -174,21 +166,19 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        {/* Background overlay */}
-        <div 
-          className="fixed inset-0 transition-opacity bg-gray-900/75" 
-          onClick={onClose}
-          aria-hidden="true"
-        ></div>
-
-        {/* Modal panel */}
-        <div className="relative inline-block align-bottom bg-page-secondary rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+    <dialog
+      ref={dialog}
+      aria-labelledby="gallery-form-title"
+      onClose={onClose}
+      onCancel={event => { if (loading || uploading) event.preventDefault(); }}
+      onClick={event => { if (event.target === event.currentTarget && !loading && !uploading) close(); }}
+      className="m-auto max-h-[92dvh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto rounded-2xl bg-page-secondary text-left text-primary shadow-xl backdrop:bg-gray-900/75"
+    >
+      <div>
           {/* Header */}
           <div className="px-6 py-4 border-b border-light flex justify-between items-center bg-page-tertiary">
             <div>
-              <h3 className="text-xl font-semibold text-primary">
+              <h3 id="gallery-form-title" className="text-xl font-semibold text-primary">
                 {item ? 'Edit Gallery Item' : 'Add New Gallery Item'}
               </h3>
               <p className="text-sm text-secondary mt-1">
@@ -196,7 +186,8 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
               </p>
             </div>
             <button
-              onClick={onClose}
+              onClick={close}
+              aria-label="Close gallery editor"
               className="p-2 rounded-lg hover:bg-page-primary text-secondary hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
               disabled={loading || uploading}
             >
@@ -206,13 +197,14 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 bg-page-secondary">
+            {error && <p role="alert" className="mb-4 rounded-lg border border-light p-3 text-primary">{error}</p>}
             <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 modal-scrollbar">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="gallery-title" className="block text-sm font-medium text-secondary mb-2">
                   Title *
                 </label>
-                <input
+                <input id="gallery-title"
                   type="text"
                   required
                   value={formData.title}
@@ -226,10 +218,10 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
               {/* Category and Year */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">
+                  <label htmlFor="gallery-category" className="block text-sm font-medium text-secondary mb-2">
                     Category *
                   </label>
-                  <select
+                  <select id="gallery-category"
                     required
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -244,10 +236,10 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-secondary mb-2">
+                  <label htmlFor="gallery-year" className="block text-sm font-medium text-secondary mb-2">
                     Year
                   </label>
-                  <input
+                  <input id="gallery-year"
                     type="text"
                     value={formData.year}
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
@@ -260,26 +252,28 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
 
               {/* Client */}
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="gallery-client" className="block text-sm font-medium text-secondary mb-2">
                   Client *
                 </label>
-                <input
+                <input id="gallery-client"
                   type="text"
                   required
+                  aria-describedby="gallery-public-details"
                   value={formData.client}
                   onChange={(e) => setFormData({ ...formData, client: e.target.value })}
                   className="w-full px-4 py-3 border border-light rounded-lg bg-page-primary text-primary focus:ring-2 focus:ring-accent focus:border-transparent transition-colors"
                   placeholder="Enter client name"
                   disabled={loading || uploading}
                 />
+                <p id="gallery-public-details" className="mt-1 text-xs text-tertiary">Project details appear in the public gallery. Use approved names and keep customer contact details out.</p>
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">
+                <label htmlFor="gallery-description" className="block text-sm font-medium text-secondary mb-2">
                   Description *
                 </label>
-                <textarea
+                <textarea id="gallery-description"
                   required
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -350,6 +344,7 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
                       accept="image/*"
                       className="hidden"
                       id="file-upload"
+                      aria-describedby={fileError ? 'gallery-file-error' : undefined}
                       disabled={loading || uploading}
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
@@ -360,17 +355,20 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
                             {selectedFile ? selectedFile.name : 'Click to upload image'}
                           </p>
                           <p className="text-xs text-tertiary mt-1">
-                            PNG, JPG, GIF up to 5MB
+                            Images up to {galleryImageLimitLabel}
                           </p>
                         </div>
                         <button
                           type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={loading || uploading}
                           className="px-4 py-2 bg-page-primary text-secondary rounded-lg hover:bg-page-tertiary hover:text-primary transition-colors text-sm"
                         >
                           Choose File
                         </button>
                       </div>
                     </label>
+                    {fileError && <p id="gallery-file-error" role="alert" className="mt-2 text-sm text-primary">{fileError}</p>}
                   </div>
                   
                   {/* Image Preview */}
@@ -390,11 +388,7 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
                       </div>
                       <div className="relative w-full h-48 rounded-lg overflow-hidden bg-page-tertiary">
                         {imagePreview ? (
-                          <img 
-                            src={imagePreview} 
-                            alt="Preview" 
-                            className="w-full h-full object-cover"
-                          />
+                          <Image src={imagePreview} alt="Selected gallery image preview" fill unoptimized className="object-cover" />
                         ) : selectedFile ? (
                           <div className="w-full h-full flex items-center justify-center">
                             <Loader2 className="w-8 h-8 text-tertiary animate-spin" />
@@ -414,13 +408,14 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
 
                 {/* Image URL Input */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-secondary mb-2">
+                  <label htmlFor="gallery-image-url" className="block text-sm font-medium text-secondary mb-2">
                     Enter Image URL
                   </label>
-                  <input
+                  <input id="gallery-image-url"
                     type="text"
                     value={formData.image}
                     onChange={(e) => {
+                      setFileError(null);
                       setFormData({ ...formData, image: e.target.value });
                       setSelectedFile(null);
                       setImagePreview(e.target.value);
@@ -462,7 +457,7 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
             <div className="mt-8 pt-6 border-t border-light flex justify-end gap-3">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={close}
                 className="px-6 py-3 border border-light text-secondary rounded-lg hover:bg-page-primary hover:text-primary transition-colors font-medium disabled:opacity-50"
                 disabled={loading || uploading}
               >
@@ -470,7 +465,7 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
               </button>
               <button
                 type="submit"
-                disabled={loading || uploading || (!selectedFile && !formData.image)}
+                disabled={loading || uploading || !!fileError || (!selectedFile && !formData.image)}
                 className="px-6 py-3 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2"
               >
                 {(loading || uploading) ? (
@@ -484,8 +479,7 @@ export const GalleryForm = ({ item, onClose, onSubmit, loading }: GalleryFormPro
               </button>
             </div>
           </form>
-        </div>
       </div>
-    </div>
+    </dialog>
   );
 };

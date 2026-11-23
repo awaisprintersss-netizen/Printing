@@ -1,79 +1,74 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 
 type Theme = "light" | "dark"
+const mediaQuery = "(prefers-color-scheme: dark)"
+const listeners = new Set<() => void>()
+let sessionTheme: Theme | undefined
+let systemQuery: MediaQueryList | undefined
 
-type ThemeContextType = {
-  theme: Theme
-  toggleTheme: () => void
-  setTheme: (theme: Theme) => void
+function systemTheme() {
+  return systemQuery ??= window.matchMedia(mediaQuery)
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+function readTheme(): Theme {
+  if (sessionTheme) return sessionTheme
+  try {
+    const saved = localStorage.getItem("theme")
+    if (saved === "light" || saved === "dark") return saved
+  } catch {
+    // Storage can be unavailable; the theme still works for this session.
+  }
+  return systemTheme().matches ? "dark" : "light"
+}
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light")
-  const [mounted, setMounted] = useState(false)
+function syncTheme() {
+  const theme = readTheme()
+  const root = document.documentElement
+  root.dataset.theme = theme
+  root.classList.toggle("dark", theme === "dark")
+  listeners.forEach(listener => listener())
+}
 
-  useEffect(() => {
-    setMounted(true)
-    const savedTheme = localStorage.getItem("theme") as Theme
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-    
-    if (savedTheme) {
-      setTheme(savedTheme)
-    } else if (systemPrefersDark) {
-      setTheme("dark")
+function handleStorage(event: StorageEvent) {
+  if (event.key !== "theme" && event.key !== null) return
+  sessionTheme = undefined
+  syncTheme()
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  const media = systemTheme()
+  if (listeners.size === 1) {
+    window.addEventListener("storage", handleStorage)
+    media.addEventListener("change", syncTheme)
+  }
+  return () => {
+    listeners.delete(listener)
+    if (listeners.size === 0) {
+      window.removeEventListener("storage", handleStorage)
+      media.removeEventListener("change", syncTheme)
     }
-  }, [])
+  }
+}
 
-  useEffect(() => {
-    if (!mounted) return
-    
-    document.documentElement.setAttribute("data-theme", theme)
+function serverTheme(): Theme {
+  return "light"
+}
+
+function toggleTheme() {
+  const theme = readTheme() === "dark" ? "light" : "dark"
+  try {
     localStorage.setItem("theme", theme)
-    
-    // Set CSS variables for background colors
-    const root = document.documentElement
-    if (theme === "dark") {
-      root.style.setProperty('--page-bg-primary', '#121212')
-      root.style.setProperty('--page-bg-secondary', '#1a1a1a')
-      root.style.setProperty('--page-bg-tertiary', '#2d2d2d')
-      document.body.style.backgroundColor = '#121212'
-      document.documentElement.classList.add("dark")
-    } else {
-      root.style.setProperty('--page-bg-primary', '#ffffff')
-      root.style.setProperty('--page-bg-secondary', '#f8f9fa')
-      root.style.setProperty('--page-bg-tertiary', '#f1f3f5')
-      document.body.style.backgroundColor = '#ffffff'
-      document.documentElement.classList.remove("dark")
-    }
-  }, [theme, mounted])
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === "light" ? "dark" : "light")
+    sessionTheme = undefined
+  } catch {
+    sessionTheme = theme
   }
-
-  const value = {
-    theme,
-    toggleTheme,
-    setTheme
-  }
-
-  return (
-    <ThemeContext.Provider value={value}>
-      <div className="min-h-screen transition-colors duration-300 bg-page-primary">
-        {children}
-      </div>
-    </ThemeContext.Provider>
-  )
+  syncTheme()
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext)
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider")
-  }
-  return context
+  const theme = useSyncExternalStore(subscribe, readTheme, serverTheme)
+  return { theme, toggleTheme }
 }

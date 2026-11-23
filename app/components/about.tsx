@@ -1,13 +1,8 @@
-"use client"
-
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import Image from "next/image"
 import { MapPin, Globe, Clock, Zap } from "lucide-react"
-import { useTheme } from "@/app/theme-provider"
 
 export function AboutUs() {
-  const [isLoading, setIsLoading] = useState(true)
-  const { theme } = useTheme()
 
   const stats = [
     { icon: Globe, value: "15+", label: "Countries Served" },
@@ -15,76 +10,19 @@ export function AboutUs() {
     { icon: Zap, value: "99.8%", label: "Satisfaction Rate" },
   ]
 
-  useEffect(() => {
-    // Simulate loading delay
-    const timer = setTimeout(() => setIsLoading(false), 1300)
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (isLoading) {
-    return (
-      <section className="bg-page-primary relative">
-        <div className="container mx-auto px-4 py-20">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left side - Image Skeleton */}
-            <div className="relative">
-              <div className="w-full h-[500px] bg-page-tertiary rounded-2xl animate-pulse"></div>
-              
-              {/* Stats overlay skeleton */}
-              <div className="absolute -bottom-6 left-6 right-6 bg-page-secondary rounded-xl p-6 border border-light shadow-lg">
-                <div className="grid grid-cols-3 gap-4">
-                  {[1, 2, 3].map((index) => (
-                    <div key={index} className="text-center">
-                      <div className="w-6 h-6 bg-page-tertiary rounded mb-2 animate-pulse mx-auto"></div>
-                      <div className="h-8 bg-page-tertiary rounded mb-2 animate-pulse w-12 mx-auto"></div>
-                      <div className="h-4 bg-page-tertiary rounded animate-pulse w-16 mx-auto"></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right side - Content Skeleton */}
-            <div>
-              <div className="h-4 bg-page-tertiary rounded mb-4 animate-pulse w-20"></div>
-              <div className="h-12 bg-page-tertiary rounded mb-6 animate-pulse w-3/4"></div>
-              <div className="space-y-4 mb-8">
-                <div className="h-4 bg-page-tertiary rounded animate-pulse"></div>
-                <div className="h-4 bg-page-tertiary rounded animate-pulse w-5/6"></div>
-                <div className="h-4 bg-page-tertiary rounded animate-pulse w-4/5"></div>
-              </div>
-              
-              <div className="space-y-4 mb-8">
-                {[1, 2, 3].map((index) => (
-                  <div key={index} className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-page-tertiary rounded-full animate-pulse"></div>
-                    <div className="h-4 bg-page-tertiary rounded animate-pulse w-3/4"></div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-4">
-                <div className="h-12 bg-page-tertiary rounded-full animate-pulse w-32"></div>
-                <div className="h-12 bg-page-tertiary rounded-full animate-pulse w-40"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    )
-  }
-
   return (
     <section className="bg-page-primary relative">
       <div className="container mx-auto px-4 py-20">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left side - Image */}
           <div className="relative">
-            <div className="relative rounded-2xl overflow-hidden">
-              <img
+            <div className="relative h-[360px] sm:h-[500px] rounded-2xl overflow-hidden">
+              <Image
                 src="/images/Office-Image-2.jpg"
-                alt="Awais Printers Office"
-                className="w-full h-[500px] object-cover"
+                alt="Printing press with ink rollers"
+                fill
+                sizes="(min-width: 1280px) 600px, (min-width: 1024px) 48vw, calc(100vw - 32px)"
+                className="object-cover object-center"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
             </div>
@@ -137,14 +75,14 @@ export function AboutUs() {
             </div>
 
             <div className="flex flex-wrap gap-4">
-              <Link
+              <Link prefetch={false}
                 href="/about"
                 className="px-8 py-3 bg-accent text-white font-semibold rounded-full hover:opacity-90 transition-opacity"
               >
                 About Us
               </Link>
-              <Link
-                href="#location"
+              <Link prefetch={false}
+                href="/contact#location"
                 className="px-8 py-3 bg-page-secondary text-primary font-semibold rounded-full border border-light hover:border-accent hover:text-accent transition-all flex items-center gap-2"
               >
                 <MapPin className="w-4 h-4" />

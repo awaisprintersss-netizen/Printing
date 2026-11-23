@@ -1,40 +1,49 @@
-import { MongoClient, MongoClientOptions, ServerApiVersion } from 'mongodb';
-
-const uri: string = process.env.DATABASE_URL as string;
-
-if (!uri) {
-  throw new Error('Please add your MongoDB URI to .env.local');
-}
-
-const options: MongoClientOptions = {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-  connectTimeoutMS: 10000,
-  socketTimeoutMS: 45000,
-};
+import { MongoClient, ServerApiVersion } from 'mongodb';
 
 declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+const defaultDatabaseName = 'printingdata';
 
-if (process.env.NODE_ENV === 'development') {
-  // In development mode, use a global variable so that the value
-  // is preserved across module reloads caused by HMR
-  if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
+export function getDatabaseName() {
+  const name = process.env.DATABASE_NAME ?? defaultDatabaseName;
+  const normalized = name.toLowerCase();
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$/.test(name) || name !== name.trim() || ['admin', 'config', 'local'].includes(normalized)) {
+    throw new Error('MongoDB database name is invalid');
   }
-  clientPromise = global._mongoClientPromise;
-} else {
-  // In production mode, it's best to not use a global variable
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+
+  const environment = process.env.VERCEL_TARGET_ENV || process.env.VERCEL_ENV;
+  const requiresSeparateDatabase = environment ? environment !== 'production' : process.env.VERCEL === '1';
+  if (requiresSeparateDatabase && normalized === defaultDatabaseName) {
+    throw new Error('A separate MongoDB database name is required for non-production Vercel deployments');
+  }
+  return name;
 }
 
-export default clientPromise;
+export async function getMongoDatabase() {
+  const name = getDatabaseName();
+  const client = await getMongoClient();
+  return client.db(name);
+}
+
+export async function getMongoClient(): Promise<MongoClient> {
+  const uri = process.env.DATABASE_URL;
+  if (!uri) throw new Error('MongoDB is not configured');
+
+  // Start only at request time and share the connection across calls and hot reloads.
+  if (!globalThis._mongoClientPromise) {
+    const client = new MongoClient(uri, {
+      serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    });
+    globalThis._mongoClientPromise = client.connect().catch(async (error: unknown) => {
+      await client.close().catch(() => {});
+      globalThis._mongoClientPromise = undefined;
+      throw error;
+    });
+  }
+  return globalThis._mongoClientPromise;
+}

@@ -1,30 +1,31 @@
 "use client"
 
+import Link from "next/link"
 import { Footer } from "../components/footer"
 import { Header } from "../components/header"
-import { useState, useEffect } from "react"
+import { useState, useRef } from "react"
 import { 
   Phone, Mail, MapPin, Clock, MessageSquare, 
   Send, User, Briefcase, Globe, CheckCircle,
-  Share2, Camera, MessageCircle, Link, Play,
   Navigation, Loader2, AlertCircle, ExternalLink
 } from "lucide-react"
-import { useTheme } from "@/app/theme-provider"
+import { quoteLimits, quoteServices, type QuoteDetails } from "@/lib/quotations/contracts"
 
-export default function ContactPage() {
-  const { theme } = useTheme()
-  const [formData, setFormData] = useState({
+const emptyQuote: QuoteDetails = {
     name: "",
     email: "",
     phone: "",
     company: "",
     service: "",
     message: "",
-  })
+}
 
+export default function ContactPage() {
+  const [formData, setFormData] = useState(emptyQuote)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [submissionMessage, setSubmissionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const inFlight = useRef(false)
+  const submission = useRef<{ payload: string; id: string } | null>(null)
   
   // Directions states
   const [isGettingDirections, setIsGettingDirections] = useState(false)
@@ -39,32 +40,46 @@ export default function ContactPage() {
     name: "Awais Printers Office"
   }
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 800)
-    return () => clearTimeout(timer)
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    setIsSubmitting(false)
-    setIsSubmitted(true)
-    setFormData({ name: "", email: "", phone: "", company: "", service: "", message: "" })
-    
-    setTimeout(() => setIsSubmitted(false), 5000)
-  }
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.value
     }))
+  }
+
+  const handleQuoteSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (inFlight.current) return
+    const website = new FormData(event.currentTarget).get("website")
+    inFlight.current = true
+    setIsSubmitting(true)
+    setSubmissionMessage(null)
+    try {
+      const payload = JSON.stringify({ ...formData, website })
+      if (submission.current?.payload !== payload) {
+        submission.current = { payload, id: crypto.randomUUID() }
+      }
+      const response = await fetch("/api/quotations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, website, submissionId: submission.current.id }),
+        signal: AbortSignal.timeout(20000),
+      })
+      const result = await response.json()
+      if (!response.ok || result.success !== true) {
+        if (response.status === 409) submission.current = null
+        setSubmissionMessage({ type: "error", text: result.error || "Please check your details and try again." })
+        return
+      }
+      setFormData(emptyQuote)
+      submission.current = null
+      setSubmissionMessage({ type: "success", text: "Your quotation request was received. We’ll use the details you provided to follow up." })
+    } catch {
+      setSubmissionMessage({ type: "error", text: "We couldn’t confirm your request. Please try again or contact us on WhatsApp." })
+    } finally {
+      inFlight.current = false
+      setIsSubmitting(false)
+    }
   }
 
   // Function to get user's current location
@@ -198,44 +213,10 @@ export default function ContactPage() {
     }
   ]
 
-  const services = [
-    "Business Cards",
-    "Brochures & Flyers",
-    "Banners & Signage",
-    "Packaging",
-    "Labels & Stickers",
-    "Letterheads",
-    "Catalogs",
-    "Presentation Folders",
-    "Leather Patches",
-    "Woven Labels",
-    "Hang Tags",
-    "Screen Printing",
-    "Offset Printing",
-    "Digital Printing",
-    "Foil Stamping",
-    "Embossing",
-    "Die Cutting",
-    "Lamination"
-  ]
-
-  if (isLoading) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen bg-page-primary">
-          {/* Loading skeleton remains the same */}
-          {/* ... (keep your existing loading skeleton code) ... */}
-        </div>
-        <Footer />
-      </>
-    )
-  }
-
   return (
     <>
     <Header />
-    <div className="min-h-screen bg-page-primary">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-page-primary scroll-mt-20">
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-to-r from-page-secondary to-page-tertiary">
         <div className="container mx-auto px-4">
@@ -299,32 +280,29 @@ export default function ContactPage() {
             <div>
               <div className="sticky top-24">
                 <h2 className="text-3xl font-bold text-primary mb-2">Send Us a Message</h2>
-                <p className="text-secondary mb-8">
-                  Fill out the form below and we'll get back to you within 24 hours.
+                <p className="text-secondary mb-8" id="quote-status">
+                  Tell us about your project to request a quote. You can also{" "}
+                  <a className="underline" href="https://wa.me/923224432533">contact us on WhatsApp</a>.
                 </p>
 
-                {isSubmitted && (
-                  <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
-                    <div className="flex items-center gap-3 text-green-600">
-                      <CheckCircle className="w-6 h-6" />
-                      <div>
-                        <p className="font-semibold">Message Sent Successfully!</p>
-                        <p className="text-sm">We'll contact you soon.</p>
-                      </div>
-                    </div>
+                <form id="quote" onSubmit={handleQuoteSubmit} method="post" action="/api/quotations" aria-describedby="quote-status" aria-busy={isSubmitting} className="space-y-6 scroll-mt-24">
+                  <div hidden aria-hidden="true">
+                    <label htmlFor="quote-website">Leave this field empty</label>
+                    <input id="quote-website" name="website" tabIndex={-1} autoComplete="off" />
                   </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-primary mb-2">
+                      <label htmlFor="quote-name" className="block text-sm font-medium text-primary mb-2">
                         <User className="w-4 h-4 inline mr-2" />
                         Full Name *
                       </label>
                       <input
                         type="text"
+                        id="quote-name"
                         name="name"
+                        autoComplete="name"
+                        maxLength={quoteLimits.name}
+                        disabled={isSubmitting}
                         value={formData.name}
                         onChange={handleChange}
                         required
@@ -333,13 +311,17 @@ export default function ContactPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-primary mb-2">
+                      <label htmlFor="quote-email" className="block text-sm font-medium text-primary mb-2">
                         <Mail className="w-4 h-4 inline mr-2" />
                         Email Address *
                       </label>
                       <input
                         type="email"
+                        id="quote-email"
                         name="email"
+                        autoComplete="email"
+                        maxLength={quoteLimits.email}
+                        disabled={isSubmitting}
                         value={formData.email}
                         onChange={handleChange}
                         required
@@ -351,13 +333,17 @@ export default function ContactPage() {
 
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-primary mb-2">
+                      <label htmlFor="quote-phone" className="block text-sm font-medium text-primary mb-2">
                         <Phone className="w-4 h-4 inline mr-2" />
                         Phone Number *
                       </label>
                       <input
                         type="tel"
+                        id="quote-phone"
                         name="phone"
+                        autoComplete="tel"
+                        maxLength={quoteLimits.phone}
+                        disabled={isSubmitting}
                         value={formData.phone}
                         onChange={handleChange}
                         required
@@ -366,13 +352,17 @@ export default function ContactPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-primary mb-2">
+                      <label htmlFor="quote-company" className="block text-sm font-medium text-primary mb-2">
                         <Briefcase className="w-4 h-4 inline mr-2" />
                         Company Name
                       </label>
                       <input
                         type="text"
+                        id="quote-company"
                         name="company"
+                        autoComplete="organization"
+                        maxLength={quoteLimits.company}
+                        disabled={isSubmitting}
                         value={formData.company}
                         onChange={handleChange}
                         className="w-full px-4 py-3 rounded-lg bg-page-primary border border-light text-primary placeholder:text-secondary focus:outline-none focus:border-accent transition-colors"
@@ -382,31 +372,36 @@ export default function ContactPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-primary mb-2">
+                    <label htmlFor="quote-service" className="block text-sm font-medium text-primary mb-2">
                       <Globe className="w-4 h-4 inline mr-2" />
                       Service Interested In *
                     </label>
                     <select
+                      id="quote-service"
                       name="service"
+                      disabled={isSubmitting}
                       value={formData.service}
                       onChange={handleChange}
                       required
                       className="w-full px-4 py-3 rounded-lg bg-page-primary border border-light text-primary focus:outline-none focus:border-accent transition-colors"
                     >
                       <option value="">Select a service</option>
-                      {services.map((service, index) => (
-                        <option key={index} value={service}>{service}</option>
+                      {quoteServices.map(service => (
+                        <option key={service} value={service}>{service}</option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-primary mb-2">
+                    <label htmlFor="quote-message" className="block text-sm font-medium text-primary mb-2">
                       <MessageSquare className="w-4 h-4 inline mr-2" />
                       Your Message *
                     </label>
                     <textarea
+                      id="quote-message"
                       name="message"
+                      maxLength={quoteLimits.message}
+                      disabled={isSubmitting}
                       value={formData.message}
                       onChange={handleChange}
                       required
@@ -416,26 +411,22 @@ export default function ContactPage() {
                     />
                   </div>
 
+                  {submissionMessage && (
+                    <p role={submissionMessage.type === "error" ? "alert" : "status"} className="rounded-xl border border-light bg-page-primary p-4 text-primary">
+                      {submissionMessage.text}
+                    </p>
+                  )}
                   <button
                     type="submit"
                     disabled={isSubmitting}
                     className="w-full py-4 bg-accent text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-5 h-5" />
-                        Send Message
-                      </>
-                    )}
+                    <Send className="w-5 h-5" />
+                    {isSubmitting ? "Sending…" : "Send Message"}
                   </button>
 
                   <p className="text-sm text-secondary text-center">
-                    By submitting this form, you agree to our Privacy Policy and Terms of Service.
+                    We use your contact details to respond to your quotation request.
                   </p>
                 </form>
               </div>
@@ -444,7 +435,7 @@ export default function ContactPage() {
             {/* Map & Additional Info */}
             <div className="space-y-8">
               {/* Map Section with Directions */}
-              <div className="rounded-2xl overflow-hidden border border-light bg-page-primary">
+              <div id="location" className="scroll-mt-24 rounded-2xl overflow-hidden border border-light bg-page-primary">
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
                     <MapPin className="w-6 h-6 text-accent" />
@@ -505,7 +496,7 @@ export default function ContactPage() {
                   </div>
 
                   <div className="mt-4 text-xs text-secondary text-center">
-                    <p>We'll ask for location permission to provide accurate directions.</p>
+                    <p>We&apos;ll ask for location permission to provide accurate directions.</p>
                     <p>Your location data is only used to calculate the route.</p>
                   </div>
                 </div>
@@ -529,40 +520,14 @@ export default function ContactPage() {
                 </a>
               </div>
 
-              {/* Social Media */}
-              <div className="bg-page-primary rounded-2xl p-6 border border-light">
-                <h3 className="text-xl font-bold text-primary mb-4">Connect With Us</h3>
-                <p className="text-secondary mb-6">
-                  Follow us on social media for updates, tips, and special offers.
-                </p>
-                <div className="grid grid-cols-5 gap-4">
-                  {[
-                    { icon: Share2, label: "Facebook", color: "bg-blue-600 hover:bg-blue-700" },
-                    { icon: Camera, label: "Instagram", color: "bg-linear-to-br from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800" },
-                    { icon: MessageCircle, label: "Twitter", color: "bg-sky-500 hover:bg-sky-600" },
-                    { icon: Link, label: "LinkedIn", color: "bg-blue-700 hover:bg-blue-800" },
-                    { icon: Play, label: "YouTube", color: "bg-red-600 hover:bg-red-700" },
-                  ].map((social, index) => (
-                    <a
-                      key={index}
-                      href="#"
-                      className={`${social.color} aspect-square rounded-xl flex items-center justify-center text-white transition-colors`}
-                      aria-label={social.label}
-                    >
-                      <social.icon className="w-6 h-6" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-
               {/* FAQ Preview */}
               <div className="bg-page-primary rounded-2xl p-6 border border-light">
                 <h3 className="text-xl font-bold text-primary mb-4">Quick Questions</h3>
                 <div className="space-y-4">
                   {[
-                    { q: "What's your typical turnaround time?", a: "3-5 business days" },
-                    { q: "Do you offer bulk discounts?", a: "Yes, for orders over 500 units" },
-                    { q: "Can I upload my design files?", a: "Yes, via our online portal" },
+                    { q: "What's your typical turnaround time?", a: "Include your deadline in your quote request so we can confirm the turnaround." },
+                    { q: "Do you offer bulk discounts?", a: "Include the quantity in your quote request to discuss pricing." },
+                    { q: "How can I share my design files?", a: "Contact us by email or WhatsApp to discuss which files to send." },
                   ].map((faq, index) => (
                     <div key={index} className="pb-4 border-b border-light last:border-0">
                       <p className="font-medium text-primary mb-1">{faq.q}</p>
@@ -570,12 +535,12 @@ export default function ContactPage() {
                     </div>
                   ))}
                 </div>
-                <a 
-                  href="/faq" 
+                <Link
+                  href="/#faq"
                   className="inline-block mt-4 text-accent hover:underline font-medium"
                 >
                   View all FAQs →
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -590,7 +555,7 @@ export default function ContactPage() {
               Ready to Start Your Printing Project?
             </h2>
             <p className="text-xl text-secondary mb-8">
-              Contact us today for a free consultation and quote. Let's create something amazing together!
+              Contact us today for a free consultation and quote. Let&apos;s create something amazing together!
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <a 
@@ -613,7 +578,7 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
-    </div>
+    </main>
     <Footer />
     </>
   )

@@ -1,20 +1,23 @@
-import { currentUser } from "@clerk/nextjs/server";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
-import { ThemeToggle } from "@/app/components/ThemeToggle"; // Change to named import
+import { ClerkProvider, UserButton } from "@clerk/nextjs";
+import { ThemeToggle } from "@/app/components/ThemeToggle";
+import { getGalleryAdmin } from "@/lib/gallery-admin";
+
+export const metadata: Metadata = { title: "Admin | Awais Printers", robots: { index: false, follow: false } };
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await currentUser();
-
-  if (!user) {
-    redirect("/sign-in");
-  }
+  const access = await getGalleryAdmin();
+  if (access.status === 401) redirect("/sign-in");
+  if (access.status === 403) redirect("/");
 
   return (
+    <ClerkProvider>
     <div className="min-h-screen bg-page-primary">
       <header className="bg-page-secondary shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -24,12 +27,12 @@ export default async function AdminLayout({
             </h1>
             
             <div className="flex items-center space-x-4">
-              <a 
+              <Link
                 href="/"
                 className="px-4 py-2 bg-accent text-white rounded text-sm hover:opacity-90"
               >
                 Back to website
-              </a>
+              </Link>
               
               <ThemeToggle />
               
@@ -39,9 +42,10 @@ export default async function AdminLayout({
         </div>
       </header>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         {children}
       </main>
     </div>
+    </ClerkProvider>
   );
 }

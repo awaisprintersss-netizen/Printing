@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+  <title>Photo unavailable</title>
+  <rect width="640" height="480" fill="#f1f3f5"/>
+  <rect x="276" y="152" width="88" height="88" rx="20" fill="#fff" stroke="#dee2e6" stroke-width="2"/>
+  <path d="M300 188v-14h40v14m-40 26h-8v-26h56v26h-8m-40-10h40v22h-40z" fill="none" stroke="#495057" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="320" y="283" text-anchor="middle" font-size="22" font-family="system-ui,sans-serif" fill="#495057">Photo unavailable</text>
+</svg>

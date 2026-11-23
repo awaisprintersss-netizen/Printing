@@ -1,69 +1,35 @@
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { randomUUID } from 'node:crypto';
+import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
+import { galleryImageLimit } from '@/lib/gallery-upload-limits';
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+export function flagGalleryUploadForReview(operation: string, publicId: string) {
+  console.warn(operation, { publicId });
+}
 
-export async function uploadToCloudinary(
-  file: Buffer | string, 
-  folder: string = 'printing-gallery'
-): Promise<UploadApiResponse> {
+export async function uploadToCloudinary(image: string): Promise<UploadApiResponse> {
+  const cloud_name = process.env.CLOUDINARY_CLOUD_NAME;
+  const api_key = process.env.CLOUDINARY_API_KEY;
+  const api_secret = process.env.CLOUDINARY_API_SECRET;
+  if (!cloud_name?.trim() || !api_key?.trim() || !api_secret?.trim()) throw new Error('Cloudinary is not configured');
+  cloudinary.config({ cloud_name, api_key, api_secret });
+
+  const publicId = `printing-gallery/${randomUUID()}`;
   try {
-    // If file is a base64 string
-    if (typeof file === 'string') {
-      const result = await cloudinary.uploader.upload(file, {
-        folder,
-        resource_type: 'auto',
-      });
-      return result;
-    }
-    
-    // If file is a Buffer, convert to base64 first
-    const base64String = `data:image/jpeg;base64,${file.toString('base64')}`;
-    const result = await cloudinary.uploader.upload(base64String, {
-      folder,
-      resource_type: 'auto',
+    return await cloudinary.uploader.upload(image, {
+      public_id: publicId,
+      overwrite: false,
+      resource_type: 'image',
+      tags: ['awais-gallery-upload'],
     });
-    
-    return result;
-  } catch (error) {
-    console.error('Cloudinary upload error:', error);
-    throw error;
+  } catch {
+    flagGalleryUploadForReview('Cloudinary upload outcome uncertain', publicId);
+    throw new Error('Cloudinary could not complete the gallery upload');
   }
 }
 
-export async function deleteFromCloudinary(publicId: string): Promise<any> {
-  try {
-    const result = await cloudinary.uploader.destroy(publicId);
-    return result;
-  } catch (error) {
-    console.error('Cloudinary delete error:', error);
-    throw error;
-  }
-}
-
-export function getCloudinaryUrl(publicId: string, options?: any): string {
-  return cloudinary.url(publicId, {
-    width: 1200,
-    height: 800,
-    crop: 'fill',
-    quality: 'auto',
-    fetch_format: 'auto',
-    ...options,
-  });
-}
-
-// Helper function to check if string is base64
-export function isBase64(str: string): boolean {
-  if (str.startsWith('data:image')) {
-    return true;
-  }
-  try {
-    return btoa(atob(str)) === str;
-  } catch (err) {
-    return false;
-  }
+export function getGalleryImageError(value: string) {
+  const data = /^data:image\/[\w.+-]+;base64,([A-Za-z0-9+/]+={0,2})$/.exec(value)?.[1];
+  if (!data || data.length % 4 !== 0) return 400;
+  if (Buffer.byteLength(data, 'base64') > galleryImageLimit) return 413;
+  return null;
 }

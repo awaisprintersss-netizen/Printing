@@ -1,291 +1,99 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useTheme } from "@/app/theme-provider"
+import Image from "next/image"
+import Link from "next/link"
+import { useEffect, useState } from "react"
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react"
+
+const slides = [
+  { title: "Let Us Help You With All Of Your Printing Needs", button: "Contact Us", href: "/contact", image: "/images/image-1.jpg", focalPoint: "50% 50%" },
+  { title: "Elevate Your Brand Identity With Our Exclusive Leather Patches", button: "Know More", href: "/services", image: "/images/Leather Embosing.jpg", focalPoint: "42% 50%" },
+  { title: "Transform Your Designs With Our Screen Printing", button: "Explore More", href: "/services", image: "/images/Screen Printing.jpg", focalPoint: "55% 50%" },
+  { title: "Unmatched Quality With Our Advanced Offset Printing", button: "For More", href: "/services", image: "/images/image-4.jpg", focalPoint: "48% 50%" },
+]
+
+const control = "inline-flex h-11 w-11 items-center justify-center rounded-full border border-light bg-page-secondary text-primary transition-colors hover:bg-page-tertiary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
 
 export function Hero() {
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [isAnimating, setIsAnimating] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const { theme } = useTheme()
-
-  const slides = [
-    {
-      id: 1,
-      title: "Let Us Help You With All Of Your Printing Needs",
-      button: "Contact Us",
-      gradientLight: "linear-gradient(to bottom right, #ffffff, #f8f9fa, #ffffff)",
-      gradientDark: "linear-gradient(to bottom right, #121212, #1a1a1a, #121212)",
-  image: "/images/image-1.jpg",
-      imagePosition: "right",
-    },
-    {
-      id: 2,
-      title: "Elevate Your Brand Identity With Our Exclusive Leather Patches",
-      button: "Know More",
-      gradientLight: "linear-gradient(to bottom right, #f8f9fa, #ffffff, #f8f9fa)",
-      gradientDark: "linear-gradient(to bottom right, #1a1a1a, #121212, #1a1a1a)",
-  image: "/images/image-2.jpg",
-      imagePosition: "left",
-    },
-    {
-      id: 3,
-      title: "Transform Your Designs With Our Screen Printing",
-      button: "Explore More",
-      gradientLight: "linear-gradient(to bottom right, #f1f3f5, #ffffff, #f1f3f5)",
-      gradientDark: "linear-gradient(to bottom right, #2d2d2d, #121212, #2d2d2d)",
-  image: "/images/image-3.jpg",
-      imagePosition: "right",
-    },
-    {
-      id: 4,
-      title: "Unmatched Quality With Our Advanced Offset Printing",
-      button: "For More",
-      gradientLight: "linear-gradient(to bottom right, #ffffff, #f1f3f5, #ffffff)",
-      gradientDark: "linear-gradient(to bottom right, #121212, #2d2d2d, #121212)",
-  image: "/images/image-4.jpg",
-      imagePosition: "left",
-    },
-  ]
-
-  const nextSlide = () => {
-    if (!isAnimating) {
-      setIsAnimating(true)
-      setCurrentSlide((prev) => (prev + 1) % slides.length)
-      setTimeout(() => setIsAnimating(false), 800)
-    }
-  }
-
-  const prevSlide = () => {
-    if (!isAnimating) {
-      setIsAnimating(true)
-      setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
-      setTimeout(() => setIsAnimating(false), 800)
-    }
-  }
-
-  const goToSlide = (index: number) => {
-    if (!isAnimating && index !== currentSlide) {
-      setIsAnimating(true)
-      setCurrentSlide(index)
-      setTimeout(() => setIsAnimating(false), 800)
-    }
-  }
+  const [current, setCurrent] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const slide = slides[current]
+  const imageOnRight = current % 2 === 1
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      nextSlide()
-    }, 5000)
+    if (paused || hovered) return
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const timer = window.setTimeout(() => {
+      if (!motion.matches && !document.hidden) setCurrent(index => (index + 1) % slides.length)
+    }, 8000)
+    return () => window.clearTimeout(timer)
+  }, [current, paused, hovered])
 
-    return () => clearInterval(interval)
-  }, [currentSlide, isAnimating])
-
-  useEffect(() => {
-    // Simulate loading delay
-    const timer = setTimeout(() => setIsLoading(false), 1500)
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (isLoading) {
-    return (
-      <section className="relative h-screen overflow-hidden bg-page-primary">
-        <div className="container mx-auto h-full px-4 md:px-8">
-          <div className="h-full grid md:grid-cols-[55%_45%] grid-cols-1 gap-8 items-center">
-            {/* Text Content Skeleton */}
-            <div className="flex flex-col justify-center items-start text-left">
-              <div className="h-16 bg-page-tertiary rounded mb-8 animate-pulse w-3/4"></div>
-              <div className="h-16 bg-page-tertiary rounded mb-8 animate-pulse w-1/2"></div>
-              <div className="h-14 bg-page-tertiary rounded-full animate-pulse w-40"></div>
-            </div>
-
-            {/* Image Skeleton */}
-            <div className="flex items-center justify-center">
-              <div className="relative w-full h-[400px] md:h-[500px] lg:h-[600px] bg-page-tertiary rounded-lg animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation Arrows Skeleton */}
-        <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-page-tertiary animate-pulse"></div>
-        <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-page-tertiary animate-pulse"></div>
-
-        {/* Pagination Dots Skeleton */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
-          {[1, 2, 3, 4].map((index) => (
-            <div key={index} className="w-3 h-3 bg-page-tertiary rounded-full animate-pulse"></div>
-          ))}
-        </div>
-      </section>
-    )
+  const chooseSlide = (index: number) => {
+    setPaused(true)
+    setCurrent((index + slides.length) % slides.length)
   }
 
   return (
-    <>
-      <style jsx>{`
-        @keyframes slideInFromRight {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
+    <section
+      aria-label="Featured printing services"
+      aria-roledescription="carousel"
+      className="relative isolate min-h-[calc(100svh-5rem)] flex flex-col overflow-hidden bg-page-secondary"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocusCapture={event => {
+        const from = event.relatedTarget
+        if (!event.currentTarget.contains(from) && !event.target.closest(".hero-rotation")) setPaused(true)
+      }}
+    >
+      <div data-side={imageOnRight ? "right" : "left"} className={`hero-photo absolute inset-x-0 top-0 h-[62%] -z-10 md:h-full md:w-3/5 ${imageOnRight ? "md:left-auto" : "md:right-auto"}`}>
+        <Image
+          key={slide.image}
+          src={slide.image}
+          alt=""
+          fill
+          sizes="(min-width: 768px) 60vw, 100vw"
+          loading={current === 0 ? "eager" : "lazy"}
+          fetchPriority={current === 0 ? "high" : undefined}
+          className="object-cover"
+          style={{ objectPosition: slide.focalPoint }}
+        />
+      </div>
 
-        @keyframes slideInFromLeft {
-          from {
-            transform: translateX(-100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-
-        @keyframes fadeInScale {
-          from {
-            transform: scale(0.95);
-            opacity: 0;
-          }
-          to {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-
-        .slide-enter {
-          animation: fadeInScale 0.8s ease-out forwards;
-        }
-
-        .text-enter-left {
-          animation: slideInFromLeft 0.8s ease-out forwards;
-        }
-
-        .text-enter-right {
-          animation: slideInFromRight 0.8s ease-out forwards;
-        }
-
-        .image-enter-left {
-          animation: slideInFromLeft 0.8s ease-out forwards;
-        }
-
-        .image-enter-right {
-          animation: slideInFromRight 0.8s ease-out forwards;
-        }
-      `}</style>
-
-      <section className="relative h-screen overflow-hidden bg-page-primary">
-        {slides.map((slide, index) => (
-          <div
-            key={slide.id}
-            className={`absolute inset-0 transition-opacity duration-800 ${
-              index === currentSlide ? "opacity-100 z-10 slide-enter" : "opacity-0 z-0"
-            }`}
-            style={{
-              background: theme === 'dark' ? slide.gradientDark : slide.gradientLight,
-            }}
-          >
-            {/* Full screen image with space for text */}
-            <img
-              src={slide.image || "/placeholder.svg"}
-              alt={slide.title}
-              className={`absolute w-full h-full object-cover ${
-                slide.imagePosition === "left"
-                  ? "right-0 md:right-0 lg:w-3/5 xl:w-2/3"
-                  : "left-0 md:left-0 lg:w-3/5 xl:w-2/3"
-              } ${
-                index === currentSlide
-                  ? slide.imagePosition === "left"
-                    ? "image-enter-left"
-                    : "image-enter-right"
-                  : "opacity-0"
-              }`}
-              style={{
-                filter: theme === 'dark'
-                  ? "drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5))"
-                  : "drop-shadow(0 10px 30px rgba(0, 0, 0, 0.2))",
-              }}
-            />
-
-            {/* Text Content */}
-            <div
-              className={`absolute inset-0 flex items-center ${
-                slide.imagePosition === "left" ? "justify-start pl-8 md:pl-16" : "justify-end pr-8 md:pr-16"
-              } ${index === currentSlide ? (slide.imagePosition === "left" ? "text-enter-left" : "text-enter-right") : "opacity-0"}`}
-            >
-              <div className={`max-w-lg ${slide.imagePosition === "left" ? "text-left" : "text-right"}`}>
-                                <h1
-  className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 leading-tight text-primary"
-  style={{
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-    color: theme === "dark" ? "#ffffff" : "#111827",
-    WebkitTextStroke:
-      theme === "dark"
-        ? "1px rgba(0, 0, 0, 0.9)"
-        : "1px rgba(255, 255, 255, 0.9)",
-    textShadow:
-      theme === "dark"
-        ? "0 0 8px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.55)"
-        : "0 0 8px rgba(255, 255, 255, 0.9), 0 0 12px rgba(255, 255, 255, 0.55)",
-  }}
->
-  {slide.title}
-</h1>
-                <button
-                  className="px-8 py-4 bg-accent hover:opacity-90 text-white font-bold rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg"
-                >
-                  {slide.button}
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* Navigation Arrows */}
-        <button
-          onClick={prevSlide}
-          className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-transform border border-light"
-          aria-label="Previous slide"
-          style={{
-            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-          }}
-        >
-          <ChevronLeft className="w-6 h-6 text-primary" />
-        </button>
-
-        <button
-          onClick={nextSlide}
-          className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full backdrop-blur-sm flex items-center justify-center hover:scale-110 transition-transform border border-light"
-          aria-label="Next slide"
-          style={{
-            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-          }}
-        >
-          <ChevronRight className="w-6 h-6 text-primary" />
-        </button>
-
-        {/* Pagination Dots */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-3">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`rounded-full transition-all duration-300 hover:scale-120 ${
-                index === currentSlide 
-                  ? "w-12 h-3 bg-accent" 
-                  : "w-3 h-3 bg-current opacity-30"
-              }`}
-              style={{
-                color: 'var(--text-primary)'
-              }}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
+      <div className={`container mx-auto min-h-[26rem] flex flex-1 items-end px-5 pt-36 pb-3 sm:px-8 md:items-center md:py-12 ${imageOnRight ? "md:justify-start" : "md:justify-end"}`}>
+        <div className={`w-full md:max-w-[55%] lg:max-w-lg ${imageOnRight ? "md:text-left" : "md:text-right"}`}>
+          <h1 className={current === 0 ? "hero-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight text-primary" : "sr-only"}>
+            {slides[0].title}
+          </h1>
+          {current !== 0 && (
+            <h2 className="hero-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight text-primary" aria-live={paused ? "polite" : "off"}>
+              {slide.title}
+            </h2>
+          )}
+          <Link prefetch={false} href={slide.href} className="mt-5 md:mt-8 inline-flex px-8 py-4 bg-accent hover:opacity-90 text-white font-bold rounded-full shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+            {slide.button}
+          </Link>
         </div>
-      </section>
-    </>
+      </div>
+
+      <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 px-3 pt-2 pb-4 md:pb-7" role="group" aria-label="Slide controls">
+        <button type="button" className={control} aria-label="Previous slide" onClick={() => chooseSlide(current - 1)}>
+          <ChevronLeft className="size-6" />
+        </button>
+        {slides.map((item, index) => (
+          <button key={item.image} type="button" className={control} aria-current={current === index ? "true" : undefined}
+            aria-label={`Go to slide ${index + 1}`} onClick={() => chooseSlide(index)}>
+            <span className={`h-2.5 rounded-full ${current === index ? "w-5 bg-accent" : "w-2.5 bg-current opacity-40"}`} />
+          </button>
+        ))}
+        <button type="button" className={control} aria-label="Next slide" onClick={() => chooseSlide(current + 1)}>
+          <ChevronRight className="size-6" />
+        </button>
+        <button type="button" className={`${control} hero-rotation`} aria-label={paused ? "Start slideshow" : "Pause slideshow"} onClick={() => setPaused(value => !value)}>
+          {paused ? <Play className="size-5" /> : <Pause className="size-5" />}
+        </button>
+      </div>
+    </section>
   )
 }

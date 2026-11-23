@@ -1,34 +1,34 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import { ThemeProvider } from "./theme-provider"
-import { ClerkProvider } from '@clerk/nextjs'
+import { siteUrl } from "@/lib/site-metadata"
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Awais Printers",
-  description: "Professional printing services with precision and creativity",
+  icons: { icon: "/favicon.svg" },
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+// Apply the saved or system theme before the page paints.
+const initializeTheme = `(() => {
+  let theme;
+  try { theme = localStorage.getItem("theme"); } catch {}
+  if (theme !== "light" && theme !== "dark") theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle("dark", theme === "dark");
+})();`
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider>
     <html lang="en" suppressHydrationWarning>
-        <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-          <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,700;14..32,800&display=swap" rel="stylesheet" />
-          <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        </head>
-      <body>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: initializeTheme }} />
+      </head>
+      <body id="top">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[60] focus:rounded focus:bg-page-primary focus:px-4 focus:py-2">
+          Skip to content
+        </a>
+        {children}
       </body>
     </html>
-    </ClerkProvider>
   )
 }
